@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>$P+ Gesture Demo</title>
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="style.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+</head>
+<body>
+<main>
+  <nav><a href="index.html">Home</a><a href="gestures.html">Gesture demo</a></nav>
+  <h1>$P+ gesture recognizer</h1>
+  <p class="muted">My C++ recognizer compiled to WebAssembly. Draw a gesture (multiple strokes are fine;
+     it finishes after a short pause).</p>
+
+  <div class="row">
+    <label><input type="radio" name="mode" value="recognize" checked> Recognize</label>
+    <label><input type="radio" name="mode" value="teach"> Teach new gesture</label>
+    <input type="text" id="name" placeholder="gesture name" style="display:none">
+    <button id="clear">Clear</button>
+  </div>
+
+  <canvas id="pad"></canvas>
+  <div id="result" aria-live="polite">Loading…</div>
+  <div>Known gestures: <span id="known"></span></div>
+</main>
+
+<script type="module">
+import createModule from './wasm/pplus.js';
+
+const result = document.getElementById('result');
+const known  = document.getElementById('known');
+const nameIn = document.getElementById('name');
+const canvas = document.getElementById('pad');
+const ctx    = canvas.getContext('2d');
+const IDLE_MS = 700;
+
+let rec;
+try {
+  const M = await createModule();
+  rec = new M.Recognizer();
+} catch (e) {
+  result.textContent = 'Could not load WebAssembly. Serve over http (not file://) and build with build_wasm.sh.';
+  throw e;
+}
+
+// ---- helpers -------------------------------------------------------------
+const counts = new Map();
+const flat = strokes => ({ pts: strokes.flat(2), lens: strokes.map(s => s.length) });
+function addTemplate(name, strokes) {
+  const { pts, lens } = flat(strokes);
+  if (!rec.add(name, pts, lens)) return false;
+  counts.set(name, (counts.get(name) || 0) + 1);
+  known.innerHTML = [...counts].map(([n, c]) => `<span class="tag">${n} (${c})</span>`).join('');
+  return true;
+}
+
+// ---- built-in templates ----------------------------------------------------
+result.textContent = 'Draw something!';
+
+// ---- canvas drawing ----------------------------------------------------------
+function resize() {
+  const r = canvas.getBoundingClientRect(), d = window.devicePixelRatio || 1;
+  canvas.width = r.width * d; canvas.height = r.height * d;
+  ctx.setTransform(d, 0, 0, d, 0, 0);
+  ctx.lineWidth = 4; ctx.lineCap = ctx.lineJoin = 'round'; ctx.strokeStyle = '#4f8cff';
+}
+addEventListener('resize', () => { resize(); strokes = []; });
+resize();
+
+let strokes = [], current = null, timer = null;
+const pos = e => { const r = canvas.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
+const mode = () => document.querySelector('input[name=mode]:checked').value;
+
+canvas.addEventListener('pointerdown', e => {
+  canvas.setPointerCapture(e.pointerId);
+  clearTimeout(timer);
+  if (!strokes.length) ctx.clearRect(0, 0, canvas.width, canvas.height);
+  current = [pos(e)]; strokes.push(current);
+});
+canvas.addEventListener('pointermove', e => {
+  if (!current) return;
+  const p = pos(e), q = current[current.length - 1];
+  current.push(p);
+  ctx.beginPath(); ctx.moveTo(q[0], q[1]); ctx.lineTo(p[0], p[1]); ctx.stroke();
+});
+const end = () => {
+  if (!current) return;
+  current = null;
+  timer = setTimeout(finish, IDLE_MS);
+};
+canvas.addEventListener('pointerup', end);
+canvas.addEventListener('pointercancel', end);
+
+function finish() {
+  const g = strokes.filter(s => s.length > 1);
+  strokes = [];
+  if (!g.length) return;
+  if (mode() === 'teach') {
+    const name = nameIn.value.trim();
+    if (!name) { result.textContent = 'Type a gesture name first.'; return; }
+    result.textContent = addTemplate(name, g) ? `Learned "${name}".` : 'That gesture was too small or empty.';
+  } else {
+    const { pts, lens } = flat(g);
+    const r = rec.recognize(pts, lens);
+    result.textContent = r.name
+      ? `${r.name}  (score ${r.score.toFixed(2)})`
+      : `No match  (best score ${r.score.toFixed(2)})`;
+  }
+}
+
+document.getElementById('clear').onclick = () => {
+  clearTimeout(timer); strokes = []; current = null;
+  ctx.clearRect(0, 0, canvas.width, canvas.height); result.textContent = 'Draw something!';
+};
+document.querySelectorAll('input[name=mode]').forEach(r =>
+  r.onchange = () => { nameIn.style.display = mode() === 'teach' ? '' : 'none'; });
+</script>
+</body>
+</html>

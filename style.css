@@ -1,0 +1,34 @@
+:root{--bg:#fafafa;--fg:#1a1a1a;--muted:#666;--card:#fff;--line:#e2e2e2;--accent:#2f6fed}
+@media (prefers-color-scheme:dark){:root{--bg:#121212;--fg:#ececec;--muted:#999;--card:#1c1c1c;--line:#333;--accent:#6c9bff}}
+*{box-sizing:border-box}
+main{max-width:720px;margin:0 auto;padding:2.5rem 1.25rem}
+a{color:var(--accent)}
+nav{display:flex;gap:1.25rem;margin-bottom:2rem}
+canvas{width:100%;height:320px;background:var(--card);border:1px solid var(--line);border-radius:10px;touch-action:none;cursor:crosshair;display:block}
+.row{display:flex;flex-wrap:wrap;gap:.6rem;align-items:center;margin:.8rem 0}
+button,input[type=text]{font:inherit;padding:.4rem .8rem;border-radius:6px;border:1px solid var(--line);background:var(--card);color:var(--fg)}
+button{cursor:pointer}
+#result{font-size:1.3rem;min-height:2rem;margin:.5rem 0}
+.tag{display:inline-block;border:1px solid var(--line);border-radius:99px;padding:0 .7rem;margin:.15rem;font-size:.9rem}
+body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: "Inter", sans-serif;
+    font-size: 16px;
+    line-height: 1.6;
+}
+
+h1, h2, h3 {
+    font-family: "Space Grotesk", sans-serif;
+}
+.project-image {
+    display: block;
+    width: 100%;
+    height: auto;
+    border-radius: 10px;
+    border: 1px solid var(--line);
+    margin: 1rem 0;
+}
+
+
